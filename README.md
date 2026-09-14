@@ -1,6 +1,6 @@
 # PeriSense: Maternal Health Care Intelligence & Risk Prediction Platform
 
-PeriSense is an intelligent clinical decision support and maternal health monitoring web application. It integrates a Random Forest machine learning classifier with a FastAPI backend and a responsive, modern React dashboard designed specifically for antenatal care triage, patient registry management, and mass community screening.
+PeriSense is an intelligent clinical decision support and maternal health monitoring web application. It integrates a Random Forest machine learning classifier with a FastAPI backend, SQLite database, secure JWT authentication, and a responsive, modern React dashboard designed specifically for antenatal care triage, patient registry management, and mass community screening.
 
 ---
 
@@ -14,14 +14,14 @@ PeriSense is an intelligent clinical decision support and maternal health monito
    - Automated action directives (emergency referral protocols, glycemic & hypertension management).
 
 2. **Frontend Clinical Dashboard (`React` + `Vite` + `Tailwind CSS`)**:
+   - **Clinician Portal**: Secure authentication gateway with 1-click demo access for Dr. Adeyemi (Lead Obstetrician) and Nurse Okoye (Maternal Health Specialist).
    - **Overview**: Real-time cohort risk ratio, screening volume, high-risk flags, recent activity ledger.
    - **New Risk Assessment Modal**: Interactive clinical input form with 1-click test presets, real-time calculation, probability distribution bars, clinical alerts, and printable report export.
    - **Patients Directory**: Searchable, filterable patient registry with risk status tags and detailed patient record modals.
    - **Assessments Registry**: Comprehensive screening records and exportable patient logs.
    - **Batch Screening Tool**: CSV drag-and-drop mass screening with template download and scored CSV export.
    - **Notifications Feed**: Real-time triage alerts (high-priority, moderate check-ins, team summaries).
-   - **Model Intelligence & Diagnostics**: Model comparison charts (Random Forest vs Decision Tree vs SVM vs Logistic Regression), Random Forest feature importance rankings (BS: 35.2%, SystolicBP: 19.3%, Age: 15.8%, etc.), and interactive confusion matrix viewer.
-   - **Authentication & Clinician Switcher**: 1-click login for Dr. Adeyemi (Lead Obstetrician) and Nurse Okoye (Maternal Health Specialist), plus custom registration.
+   - **Model Intelligence & Diagnostics**: Model comparison charts, Random Forest feature importance rankings (BS: 35.2%, SystolicBP: 19.3%, Age: 15.8%, etc.), and interactive confusion matrix viewer.
 
 3. **Backend API (`FastAPI` + `SQLAlchemy` + `SQLite`)**:
    - `POST /predict`: Core inference endpoint matching standard specification.
@@ -32,7 +32,7 @@ PeriSense is an intelligent clinical decision support and maternal health monito
    - `GET /api/notifications`: Clinician activity and alert notifications.
    - `GET /api/analytics`: Population health statistics.
    - `GET /api/model-info`: Model architecture, evaluation metrics, and feature importances.
-   - `POST /api/auth/login`, `POST /api/auth/register`, `GET /api/auth/me`: Clinician authentication.
+   - `POST /api/auth/login`, `POST /api/auth/register`, `GET /api/auth/me`, `POST /api/auth/refresh`: Clinician JWT authentication.
 
 ---
 
@@ -67,5 +67,5 @@ npm run dev
 
 ## Running Automated Tests:
 ```bash
-PYTHONPATH=. .venv/bin/pytest backend/tests/test_api.py
+PYTHONPATH=. .venv/bin/pytest backend/tests/ -v
 ```
