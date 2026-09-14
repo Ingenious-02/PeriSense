@@ -5,6 +5,16 @@ from backend.app.main import app
 client = TestClient(app)
 
 
+def get_auth_header():
+    res = client.post(
+        "/api/auth/login",
+        json={"email": "adeyemi@perisense.health", "password": "password123"}
+    )
+    assert res.status_code == 200
+    token = res.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_health():
     res = client.get("/health")
     assert res.status_code == 200
@@ -49,7 +59,8 @@ def test_enhanced_prediction():
 
 
 def test_patients_endpoints():
-    res = client.get("/api/patients")
+    headers = get_auth_header()
+    res = client.get("/api/patients", headers=headers)
     assert res.status_code == 200
     patients = res.json()
     assert len(patients) >= 4
@@ -59,7 +70,8 @@ def test_patients_endpoints():
 
 
 def test_analytics_endpoint():
-    res = client.get("/api/analytics")
+    headers = get_auth_header()
+    res = client.get("/api/analytics", headers=headers)
     assert res.status_code == 200
     analytics = res.json()
     assert analytics["total_patients"] > 0
@@ -67,7 +79,8 @@ def test_analytics_endpoint():
 
 
 def test_notifications_endpoint():
-    res = client.get("/api/notifications")
+    headers = get_auth_header()
+    res = client.get("/api/notifications", headers=headers)
     assert res.status_code == 200
     notifications = res.json()
     assert len(notifications) > 0

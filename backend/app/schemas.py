@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from datetime import datetime
 
 
@@ -87,6 +87,7 @@ class AssessmentBase(BaseModel):
     priority_label: str
     probabilities_json: str
     clinical_notes: Optional[str] = None
+    recorded_by: Optional[str] = None
 
 
 class AssessmentCreate(AssessmentBase):
@@ -157,11 +158,13 @@ class UserLogin(BaseModel):
 
 
 class UserRegister(BaseModel):
-    name: str
+    name: str = Field(min_length=2, max_length=100)
     email: str
-    password: str
+    password: str = Field(min_length=8, description="Password must be at least 8 characters")
     title: Optional[str] = "Dr."
-    role: Optional[str] = "Obstetrician"
+    role: Optional[str] = "Lead Obstetrician"
+    department: Optional[str] = "Maternal-Fetal Medicine"
+    clinic_name: Optional[str] = "PeriSense Care Center"
 
 
 class UserResponse(BaseModel):
@@ -170,4 +173,22 @@ class UserResponse(BaseModel):
     email: str
     title: str
     role: str
+    department: Optional[str] = "Maternal-Fetal Medicine"
+    clinic_name: Optional[str] = "PeriSense Care Center"
+    created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 86400  # 24 hours in seconds
+    user: UserResponse
+
+
+class TokenPayload(BaseModel):
+    sub: str
+    user_id: int
+    role: str
+    name: str
+    exp: int

@@ -12,31 +12,56 @@ import BatchScreeningModal from './components/BatchScreeningModal';
 import PatientRecordModal from './components/PatientRecordModal';
 import SearchModal from './components/SearchModal';
 import AuthModal from './components/AuthModal';
+import LoginPage from './components/LoginPage';
 import { api } from './services/api';
+import { Activity } from 'lucide-react';
 
 function MainApp() {
+  const { user, loading, isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isNewAssessmentOpen, setIsNewAssessmentOpen] = useState(false);
   const [isBatchScreeningOpen, setIsBatchScreeningOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [assessmentTargetPatient, setAssessmentTargetPatient] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(2);
-  const { isAuthModalOpen, setIsAuthModalOpen } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchUnreadCount = async () => {
+    if (!isAuthenticated) return;
     try {
       const notifs = await api.getNotifications();
       const unread = notifs.filter(n => !n.is_read).length;
       setUnreadCount(unread);
     } catch {
-      // Fallback
+      // Ignore if unauthenticated
     }
   };
 
   useEffect(() => {
-    fetchUnreadCount();
-  }, [activeTab]);
+    if (isAuthenticated) {
+      fetchUnreadCount();
+    }
+  }, [activeTab, isAuthenticated]);
+
+  // If session is still loading, display elegant splash loader
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f4f8f6] flex flex-col items-center justify-center">
+        <div className="w-16 h-16 rounded-2xl bg-[#1f5f5b] text-white flex items-center justify-center shadow-lg animate-pulse mb-4">
+          <Activity className="w-8 h-8" />
+        </div>
+        <p className="text-xs font-bold text-[#1f5f5b] tracking-widest uppercase">
+          PERISENSE CARE INTELLIGENCE
+        </p>
+        <p className="text-xs text-gray-400 mt-1">Initializing secure clinical workspace...</p>
+      </div>
+    );
+  }
+
+  // If not authenticated, display full-screen Clinician Portal
+  if (!isAuthenticated || !user) {
+    return <LoginPage />;
+  }
 
   const handleOpenNewAssessment = (patient = null) => {
     setAssessmentTargetPatient(patient);

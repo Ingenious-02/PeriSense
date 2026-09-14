@@ -8,8 +8,9 @@ export default function TopHeader({
   unreadCount = 0,
   onOpenAuth
 }) {
-  const { user, switchUser, logout } = useAuth();
+  const { user, switchDemoUser, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+
 
   // Formatted date matching screenshot (e.g. Wednesday, 26 August 2026)
   const today = new Date();
@@ -83,8 +84,12 @@ export default function TopHeader({
                 {DEMO_USERS.map((demo) => (
                   <button
                     key={demo.id}
-                    onClick={() => {
-                      switchUser(demo);
+                    onClick={async () => {
+                      try {
+                        await switchDemoUser(demo);
+                      } catch (e) {
+                        console.error(e);
+                      }
                       setShowDropdown(false);
                     }}
                     className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors ${

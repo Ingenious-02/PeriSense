@@ -1,7 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from backend.app.database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(Base):
@@ -12,8 +16,13 @@ class User(Base):
     name = Column(String, nullable=False)
     title = Column(String, default="Dr.")
     role = Column(String, default="Lead Obstetrician")
+    department = Column(String, default="Maternal-Fetal Medicine", nullable=True)
+    clinic_name = Column(String, default="PeriSense Care Center", nullable=True)
     hashed_password = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    salt = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    last_login = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
 
 
 class Patient(Base):
@@ -27,8 +36,8 @@ class Patient(Base):
     phone = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
     latest_risk_status = Column(String, default="Low")
-    latest_assessment_date = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    latest_assessment_date = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
 
     assessments = relationship("Assessment", back_populates="patient", cascade="all, delete-orphan")
 
@@ -50,7 +59,8 @@ class Assessment(Base):
     priority_label = Column(String, nullable=False)
     probabilities_json = Column(Text, nullable=False)
     clinical_notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    recorded_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
 
     patient = relationship("Patient", back_populates="assessments")
 
@@ -64,4 +74,4 @@ class Notification(Base):
     priority = Column(String, default="info")  # high, moderate, info
     is_read = Column(Boolean, default=False)
     target_patient_id = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)

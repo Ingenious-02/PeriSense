@@ -2,14 +2,18 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
-from backend.app.models import Patient, Assessment
+from backend.app.models import Patient, Assessment, User
 from backend.app.schemas import AnalyticsSummary, AssessmentResponse
+from backend.app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
 
-@router.get("", response_model=AnalyticsSummary, summary="Care Intelligence & Cohort Analytics")
-def get_analytics(db: Session = Depends(get_db)):
+@router.get("", response_model=AnalyticsSummary, summary="Care Intelligence & Cohort Analytics (Authenticated)")
+def get_analytics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     total_patients = db.query(Patient).count()
     high_count = db.query(Patient).filter(Patient.latest_risk_status.ilike("%High%")).count()
     mod_count = db.query(Patient).filter(Patient.latest_risk_status.ilike("%Mod%")).count()

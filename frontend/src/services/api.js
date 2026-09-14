@@ -1,18 +1,42 @@
 const API_BASE = '';
 
+export function getAuthToken() {
+  return localStorage.getItem('perisense_jwt_token');
+}
+
+export function setAuthToken(token) {
+  if (token) {
+    localStorage.setItem('perisense_jwt_token', token);
+  } else {
+    localStorage.removeItem('perisense_jwt_token');
+  }
+}
+
 export async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const token = getAuthToken();
+
   const headers = {
     'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...(options.headers || {})
   };
 
   const response = await fetch(url, {
     ...options,
-    headers: options.body instanceof FormData ? (options.headers || {}) : headers
+    headers: options.body instanceof FormData 
+      ? { ...(token ? { 'Authorization': `Bearer ${token}` } : {}), ...(options.headers || {}) }
+      : headers
   });
 
   if (!response.ok) {
+    // If token expired / unauthorized, trigger session expiration event
+    if (response.status === 401 && !endpoint.includes('/login')) {
+      localStorage.removeItem('perisense_jwt_token');
+      localStorage.removeItem('perisense_user');
+      window.dispatchEvent(new CustomEvent('perisense_auth_expired'));
+    }
+
     let errorDetail = 'An error occurred';
     try {
       const errJson = await response.json();
@@ -57,7 +81,7 @@ export const api = {
     return request('/api/model-info');
   },
 
-  // Patients
+  // Patients (Protected)
   getPatients: async (search = '', riskFilter = '') => {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
@@ -82,7 +106,7 @@ export const api = {
     });
   },
 
-  // Assessments
+  // Assessments (Protected)
   getAssessments: async (search = '', risk = '', limit = 50) => {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
@@ -102,7 +126,7 @@ export const api = {
     return request(`/api/assessments/${id}`);
   },
 
-  // Notifications
+  // Notifications (Protected)
   getNotifications: async () => {
     return request('/api/notifications');
   },
@@ -119,27 +143,45 @@ export const api = {
     });
   },
 
-  // Analytics
+  // Analytics (Protected)
   getAnalytics: async () => {
     return request('/api/analytics');
   },
 
-  // Auth
+  // Authentication
   login: async (email, password) => {
-    return request('/api/auth/login', {
+    const res = await request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
     });
+    if (res.access_token) {
+      setAuthToken(res.access_token);
+    }
+    return res;
   },
 
   register: async (userData) => {
-    return request('/api/auth/register', {
+    const res = await request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData)
     });
+    if (res.access_token) {
+      setAuthToken(res.access_token);
+    }
+    return res;
   },
 
-  getCurrentUser: async (email = 'adeyemi@perisense.health') => {
-    return request(`/api/auth/me?email=${encodeURIComponent(email)}`);
+  getCurrentUser: async () => {
+    return request('/api/auth/me');
+  },
+
+  refreshToken: async () => {
+    const res = await request('/api/auth/refresh', {
+      method: 'POST'
+    });
+    if (res.access_token) {
+      setAuthToken(res.access_token);
+    }
+    return res;
   }
 };

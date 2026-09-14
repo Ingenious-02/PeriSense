@@ -1,7 +1,8 @@
 import os
 import json
+import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
@@ -16,8 +17,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+def utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def get_db():
@@ -28,33 +29,75 @@ def get_db():
         db.close()
 
 
+def hash_seed_password(password: str):
+    salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100000
+    ).hex()
+    return hashed, salt
+
+
 def seed_initial_data(db):
     from backend.app.models import User, Patient, Assessment, Notification
 
     # Seed Clinician Users
-    if db.query(User).count() == 0:
-        demo_users = [
-            User(
-                name="Dr. Adeyemi",
-                email="adeyemi@perisense.health",
-                title="Dr.",
-                role="Lead Obstetrician",
-                hashed_password=hash_password("password123")
-            ),
-            User(
-                name="Nurse Okoye",
-                email="okoye@perisense.health",
-                title="Nurse",
-                role="Maternal Health Specialist",
-                hashed_password=hash_password("password123")
-            )
-        ]
-        db.add_all(demo_users)
-        db.commit()
+    existing_adeyemi = db.query(User).filter(User.email == "adeyemi@perisense.health").first()
+    if not existing_adeyemi:
+        hashed, salt = hash_seed_password("password123")
+        user_adeyemi = User(
+            name="Dr. Adeyemi",
+            email="adeyemi@perisense.health",
+            title="Dr.",
+            role="Lead Obstetrician",
+            department="Maternal-Fetal Medicine",
+            clinic_name="PeriSense Care Center",
+            hashed_password=hashed,
+            salt=salt,
+            is_active=True,
+            created_at=utc_now()
+        )
+        db.add(user_adeyemi)
+    else:
+        # Ensure salt and fields exist
+        if not existing_adeyemi.salt:
+            hashed, salt = hash_seed_password("password123")
+            existing_adeyemi.hashed_password = hashed
+            existing_adeyemi.salt = salt
+            existing_adeyemi.department = "Maternal-Fetal Medicine"
+            existing_adeyemi.clinic_name = "PeriSense Care Center"
+
+    existing_okoye = db.query(User).filter(User.email == "okoye@perisense.health").first()
+    if not existing_okoye:
+        hashed, salt = hash_seed_password("password123")
+        user_okoye = User(
+            name="Nurse Okoye",
+            email="okoye@perisense.health",
+            title="Nurse",
+            role="Maternal Health Specialist",
+            department="Antenatal Triage Clinic",
+            clinic_name="PeriSense Care Center",
+            hashed_password=hashed,
+            salt=salt,
+            is_active=True,
+            created_at=utc_now()
+        )
+        db.add(user_okoye)
+    else:
+        if not existing_okoye.salt:
+            hashed, salt = hash_seed_password("password123")
+            existing_okoye.hashed_password = hashed
+            existing_okoye.salt = salt
+            existing_okoye.department = "Antenatal Triage Clinic"
+            existing_okoye.clinic_name = "PeriSense Care Center"
+
+    db.commit()
 
     # Seed Initial Patients
     if db.query(Patient).count() == 0:
-        now = datetime.utcnow()
+        now = utc_now()
         demo_patients = [
             Patient(
                 name="Amina Yusuf",
@@ -140,6 +183,7 @@ def seed_initial_data(db):
                 priority_label="High priority",
                 probabilities_json=json.dumps({"high risk": 0.9412, "mid risk": 0.0463, "low risk": 0.0125}),
                 clinical_notes="Hypertension stage 2 and hyperglycemia detected.",
+                recorded_by="Dr. Adeyemi",
                 created_at=now - timedelta(minutes=12)
             ),
             Assessment(
@@ -156,6 +200,7 @@ def seed_initial_data(db):
                 priority_label="Moderate priority",
                 probabilities_json=json.dumps({"high risk": 0.1250, "mid risk": 0.7450, "low risk": 0.1300}),
                 clinical_notes="Moderate risk. Blood sugar slightly elevated. Advise dietary regulation.",
+                recorded_by="Nurse Okoye",
                 created_at=now - timedelta(minutes=48)
             ),
             Assessment(
@@ -172,6 +217,7 @@ def seed_initial_data(db):
                 priority_label="High priority",
                 probabilities_json=json.dumps({"high risk": 0.9070, "mid risk": 0.0930, "low risk": 0.0000}),
                 clinical_notes="Elevated systolic and blood glucose levels require close supervision.",
+                recorded_by="Dr. Adeyemi",
                 created_at=now - timedelta(hours=3)
             )
         ]
@@ -180,7 +226,7 @@ def seed_initial_data(db):
 
     # Seed Initial Notifications (matching Figure 4.16)
     if db.query(Notification).count() == 0:
-        now = datetime.utcnow()
+        now = utc_now()
         notifications = [
             Notification(
                 title="Review recommended for Fatima Bello",
@@ -215,10 +261,36 @@ def seed_initial_data(db):
         db.commit()
 
 
+def migrate_sqlite_columns():
+    if "sqlite" in DB_PATH:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            try:
+                res = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+                cols = [r[1] for r in res]
+                if cols and "department" not in cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN department VARCHAR DEFAULT 'Maternal-Fetal Medicine'"))
+                if cols and "clinic_name" not in cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN clinic_name VARCHAR DEFAULT 'PeriSense Care Center'"))
+                if cols and "salt" not in cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN salt VARCHAR"))
+                if cols and "is_active" not in cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+                if cols and "last_login" not in cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN last_login DATETIME"))
+                if cols and "recorded_by" not in [r[1] for r in conn.execute(text("PRAGMA table_info(assessments)")).fetchall()]:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN recorded_by VARCHAR"))
+                conn.commit()
+            except Exception as e:
+                pass
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+    migrate_sqlite_columns()
     db = SessionLocal()
     try:
         seed_initial_data(db)
     finally:
         db.close()
+

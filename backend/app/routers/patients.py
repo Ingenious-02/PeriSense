@@ -3,16 +3,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from backend.app.database import get_db
-from backend.app.models import Patient, Assessment
+from backend.app.models import Patient, Assessment, User
 from backend.app.schemas import PatientCreate, PatientResponse, PatientBase
+from backend.app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/api/patients", tags=["Patients Directory"])
 
 
-@router.get("", response_model=List[PatientResponse], summary="List Patients")
+@router.get("", response_model=List[PatientResponse], summary="List Patients (Authenticated)")
 def get_patients(
     search: Optional[str] = Query(None, description="Search by patient name or code"),
     risk_filter: Optional[str] = Query(None, description="Filter by risk status: 'High', 'Moderate', 'Low'"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     query = db.query(Patient)
@@ -33,8 +35,12 @@ def get_patients(
     return patients
 
 
-@router.post("", response_model=PatientResponse, summary="Register New Patient")
-def create_patient(payload: PatientCreate, db: Session = Depends(get_db)):
+@router.post("", response_model=PatientResponse, summary="Register New Patient (Authenticated)")
+def create_patient(
+    payload: PatientCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     existing = db.query(Patient).filter(Patient.patient_code == payload.patient_code).first()
     if existing:
         raise HTTPException(status_code=400, detail="A patient with this ID code already exists.")
@@ -54,16 +60,24 @@ def create_patient(payload: PatientCreate, db: Session = Depends(get_db)):
     return new_patient
 
 
-@router.get("/{patient_id}", response_model=PatientResponse, summary="Get Patient Details")
-def get_patient_detail(patient_id: int, db: Session = Depends(get_db)):
+@router.get("/{patient_id}", response_model=PatientResponse, summary="Get Patient Details (Authenticated)")
+def get_patient_detail(
+    patient_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
 
 
-@router.delete("/{patient_id}", summary="Delete Patient Record")
-def delete_patient(patient_id: int, db: Session = Depends(get_db)):
+@router.delete("/{patient_id}", summary="Delete Patient Record (Authenticated)")
+def delete_patient(
+    patient_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")

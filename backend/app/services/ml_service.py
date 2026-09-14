@@ -8,7 +8,7 @@ from backend.app.schemas import PatientData, ClinicalFlag, EnhancedPredictionRes
 MODEL_CANDIDATE_PATHS = [
     os.path.join(os.path.dirname(__file__), "..", "maternal_health_risk_model.joblib"),
     os.path.join(os.path.dirname(__file__), "..", "..", "ml-model", "maternal_health_risk_model.joblib"),
-    os.path.join(os.path.dirname(__file__), "..", "..", "Upload to Antigravity", "maternal_health_risk_model.joblib"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "docs", "maternal_health_risk_model.joblib"),
     "maternal_health_risk_model.joblib"
 ]
 
